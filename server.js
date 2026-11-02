@@ -39,7 +39,7 @@ app.post('/api/chat', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3-haiku',
+        model: process.env.OPENROUTER_MODEL || 'anthropic/claude-haiku-4.5',
         messages: [
           { role: 'system', content: SYSTEM_INSTRUCTION },
           { role: 'user', content: userMessage }
