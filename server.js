@@ -13,21 +13,18 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.json({ status: 'Bible AI API running' }));
 
 // SYSTEM INSTRUCTION for the AI - thoughtful, measured guidance WITH COMFORT DIRECTIVE
-const SYSTEM_INSTRUCTION = 'You are Bible AI, providing considered, compassionate responses that reference Scripture. ' +
+const SYSTEM_INSTRUCTION = 'You are Bible AI, offering thoughtful, compassionate reflection grounded in Scripture. ' +
+  'An appropriate Bible verse is already selected and displayed to the user automatically above your message. ' +
   'Guidelines: ' +
-  '1) Answer the user\'s question thoughtfully and accurately. ' +
-  '2) Reference at least one relevant Bible verse with its text. ' +
-  '3) When the user opens up or shares personal feelings, offer comfort using Bible verses - ' +
-  'begin with the verse, then gentle, brief words of comfort. ' +
-  '4) Keep responses concise (2-3 short paragraphs maximum). ' +
-  '5) Use a respectful, measured tone - not preachy or dogmatic. ' +
-  '6) If the question is outside Scripture\'s scope, acknowledge that and offer a general wisdom perspective. ' +
-  '7) Never invent or hallucinate Bible verses or references. ' +
-  '8) Format: begin with the verse reference and text, then your response. ' +
-  '9) One verse per response is sufficient. ' +
-  '10) Be helpful without being weighty. Keep it brief. ' +
-  '11) When users share vulnerability, lead with a comfort verse (Psalm 34:18, Matthew 5:4, 2 Corinthians 1:3) ' +
-  'followed by minimal, sincere empathy.';
+  '1) Do NOT quote, restate, or reference a specific verse - the verse is shown separately. Respond with reflection only. ' +
+  '2) Answer the user\'s question thoughtfully and accurately, in a warm and grounded tone. ' +
+  '3) When the user opens up or shares personal feelings, offer gentle comfort and sincere empathy. ' +
+  '4) Keep responses concise: 2-3 short paragraphs maximum, clear and human. ' +
+  '5) Respectful and measured - never preachy, dogmatic, or lecturing. ' +
+  '6) If the question is outside Scripture\'s scope, acknowledge it honestly and offer a grounded, general perspective. ' +
+  '7) Never invent Bible verses or references. ' +
+  '8) Avoid filler, clichés, and generic platitudes. Write like a thoughtful person, not a chatbot. ' +
+  '9) Do not open with "Certainly", "Of course", or "As an AI".';
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -112,26 +109,32 @@ function getRelevantVerse(message) {
   };
 }
 
-// Format the complete response with verse
+// Format the AI reflection. The verse is returned separately and rendered by
+// the client, so we strip any verse text the model may have repeated.
 function formatResponse(aiText, verse) {
-  const cleaned = (aiText || '').trim();
+  var text = (aiText || '').trim();
+  var citation = /(?:[1-3]\s)?[A-Z][a-z]+\.?\s\d+:\d+(?:-\d+)?/;
 
-  // Clean the AI text - remove any verse references the AI might have included
-  const cleanedText = cleaned
-    .split('\n')
-    .filter(line => !line.match(/^(PS|Proverbs|Isaiah|John|Matthew|etc)\./i))
-    .join(' ')
-    .trim();
-
-  // Build the response: verse first, then the AI reflection
-  const verseDisplay = '📖 ' + verse.reference + ': "' + verse.text + '"';
-
-  // If the AI text is mostly empty or generic, just return the verse
-  if (cleanedText.length < 20 || /^(well|hmm|okay|alright)/i.test(cleanedText)) {
-    return verseDisplay + '<br><br>' + (cleanedText || 'May God\'s wisdom speak into this moment.');
+  // 1) Drop a leading sentence if it restates a verse citation.
+  var firstSentence = text.match(/^[\s\S]*?[.!?]["'”’]?(?=\s|$)/);
+  if (firstSentence && citation.test(firstSentence[0])) {
+    text = text.slice(firstSentence[0].length).trim();
   }
 
-  return verseDisplay + '<br><br>' + cleanedText;
+  // 2) Remove exact repeats of the chosen verse text.
+  if (verse && verse.text) {
+    text = text.split(verse.text).join(' ');
+  }
+
+  // 3) Strip a bare leading citation token, if any remains.
+  text = text.replace(/^[^A-Za-z0-9]*(?:[1-3]\s)?[A-Z][a-z]+\.?\s\d+:\d+(?:-\d+)?\s*[:.\-–—]?\s*/i, '');
+  text = text.replace(/^[\s"'“”‘’.,:;📖-]+/, '').replace(/\s{2,}/g, ' ').trim();
+
+  if (text.length < 20) {
+    text = 'May this passage bring you peace and clarity as you reflect on it.';
+  }
+
+  return text;
 };
 
 app.listen(PORT, function() {
