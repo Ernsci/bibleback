@@ -1,0 +1,10 @@
+service:
+  name: bible-ai-backend
+  env: node
+  plan: free
+  deploy:
+    workingDirectory: /backend
+    buildCommand: npm install
+    startCommand: node server.js
+  envVariables:
+    OPENROUTER_API_KEY: ''

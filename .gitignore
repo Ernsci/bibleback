@@ -1,0 +1,14 @@
+# Node.js dependencies
+node_modules/
+
+# Dependency lockfile (optional - you can commit this if you want)
+# package-lock.json
+
+# Runtime data
+.env
+
+# Logs
+*.log
+
+# Runtime cache
+*.cache
