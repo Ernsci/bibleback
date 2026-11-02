@@ -24,7 +24,9 @@ const SYSTEM_INSTRUCTION = 'You are Bible AI, offering thoughtful, compassionate
   '6) If the question is outside Scripture\'s scope, acknowledge it honestly and offer a grounded, general perspective. ' +
   '7) Never invent Bible verses or references. ' +
   '8) Avoid filler, clichés, and generic platitudes. Write like a thoughtful person, not a chatbot. ' +
-  '9) Do not open with "Certainly", "Of course", or "As an AI".';
+  '9) Do not open with "Certainly", "Of course", or "As an AI". ' +
+  '10) Output plain prose only: no markdown, no bold, no bullet or numbered lists, ' +
+  'and never show your reasoning, plan, or analysis - just the finished reflection.';
 
 // Free models on OpenRouter. "openrouter/free" auto-routes to an available
 // free model; the rest are explicit fallbacks if that route fails or
@@ -40,6 +42,22 @@ const FREE_MODELS = [
 function modelChain() {
   const override = (process.env.OPENROUTER_MODEL || '').trim();
   return override ? [override].concat(FREE_MODELS) : FREE_MODELS;
+}
+
+// Some free models occasionally return their planning/analysis instead of the
+// finished answer. Treat that as a failed attempt and let the next model try.
+const PLANNING_PATTERN = new RegExp([
+  'analyze the input',
+  'user statement',
+  'chain[- ]of[- ]thought',
+  'here(?:\'s| is) (?:my|the) (?:plan|approach|analysis)',
+  'let me (?:think|break|analyze)',
+  '^\\s*\\d{1,2}[.)]\\s'
+].join('|'), 'im');
+
+function isUnusable(text) {
+  if (!text || text.trim().length < 40) return true;
+  return PLANNING_PATTERN.test(text);
 }
 
 // Ask OpenRouter, trying each model in the chain until one returns text.
@@ -76,13 +94,14 @@ async function generateReflection(userMessage) {
       const choice = data.choices && data.choices[0] && data.choices[0].message;
       const content = (choice && choice.content || '').trim();
 
-      if (content) {
+      if (content && !isUnusable(content)) {
         console.log('Answered by ' + data.model + ' (cost ' + (data.usage && data.usage.cost) + ')');
         return content;
       }
 
-      // Some reasoning models spend the whole budget on reasoning tokens.
-      lastError = 'empty response';
+      // Empty, too short, or leaked planning text - try the next model.
+      lastError = content ? 'unusable output' : 'empty response';
+      console.warn('Rejected output from ' + model + ' (' + lastError + ')');
     } catch (err) {
       console.error('OpenRouter [' + model + '] request failed:', err.message);
       lastError = err.message;
@@ -194,7 +213,16 @@ function formatResponse(aiText, verse) {
     text = text.split(verse.text).join(' ');
   }
 
-  // 3) Strip a bare leading citation token, if any remains.
+  // 3) Cosmetic cleanup: drop stray markdown the model may have emitted.
+  text = text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s*[*-]\s+/gm, '')
+    .replace(/\s{2,}/g, ' ');
+
+  // 4) Strip a bare leading citation token, if any remains.
   text = text.replace(/^[^A-Za-z0-9]*(?:[1-3]\s)?[A-Z][a-z]+\.?\s\d+:\d+(?:-\d+)?\s*[:.\-–—]?\s*/i, '');
   text = text.replace(/^[\s"'“”‘’.,:;📖-]+/, '').replace(/\s{2,}/g, ' ').trim();
 
