@@ -112,6 +112,10 @@ async function generateReflection(userMessage) {
 }
 
 app.post('/api/chat', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey || apiKey !== process.env.API_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   try {
     const userMessage = req.body.message;
     if (!userMessage) return res.status(400).json({ error: 'Message required' });
