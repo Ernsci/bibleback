@@ -187,16 +187,28 @@ function getRelevantVerse(message) {
   };
 
   // Check for keyword matches - exact or substring
+  let selectedVerse = null;
   for (const [keyword, verse] of Object.entries(verseMap)) {
     if (lower.includes(keyword)) {
-      return verse;
+      selectedVerse = verse;
+      break;
     }
   }
 
-  // Default: a general wisdom verse
+  // If an Old Testament verse was selected, use a New Testament default instead.
+  const otPattern = /(Psalm|Isaiah|Deuteronomy|Lamentations|Proverbs|Ecclesiastes|Job|Genesis|Exodus|Leviticus|Numbers|Joshua|Judges|Ruth|1\s?Samuel|2\s?Samuel|1\s?Kings|2\s?Kings|1\s?Chronicles|2\s?Chronicles|Ezra|Nehemiah|Esther)/i;
+  if (selectedVerse && otPattern.test(selectedVerse.reference)) {
+    return {
+      reference: 'John 14:27',
+      text: 'Peace I leave with you; my peace I give to you.'
+    };
+  }
+
+  // Default: a New Testament wisdom verse
+  // (If a retrieved verse happens to be from the Old Testament, the fallback below will be used instead.)
   return {
-    reference: 'Proverbs 3:5-6',
-    text: 'Trust in the Lord with all your heart, and do not lean on your own understanding. In all your ways acknowledge him, and he will make straight your paths.'
+    reference: 'John 14:27',
+    text: 'Peace I leave with you; my peace I give to you.'
   };
 }
 
