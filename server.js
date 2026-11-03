@@ -249,6 +249,19 @@ function formatResponse(aiText, verse) {
   return text;
 };
 
+// Admin secret (can be overridden via environment variable on Render)
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'brion';
+
+// Admin‑only page that shows the total unique‑user count
+app.get('/bible', (req, res) => {
+  if (req.query.admin === ADMIN_SECRET) {
+    const count = users.size;
+    res.send(`<h1>Total users: ${count}</h1><p>This app has been used by ${count} unique people.</p>`);
+  } else {
+    res.status(403).send('Admin only');
+  }
+});
+
 app.listen(PORT, function() {
   console.log('📚 Bible AI Server running on port ' + PORT);
 });
